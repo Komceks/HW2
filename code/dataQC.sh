@@ -10,7 +10,6 @@ threads=6
 # fastq-dump --split-files SRR15131330
 # fastq-dump --split-files SRR18214264
 
-
 #Loop
 for i in ${dir}/inputs/*_1.fastq
 do
@@ -32,7 +31,7 @@ OUT2="${dir}/outputs/trimmed/"$(basename ${i} _1.fastq)"_2_val_2.fq";
 #fastqc analysis on samples
 # ERR204044 kokybė yra nebloga. SRR15131330 kokybė labai gera.
 # SRR18214264 kokybė nelabai patiko, šis mėginys turėjo mažiausiai duomenų, kokybė žemiausia
-# iš visų trijų mėginių matosi didelis kokybės kritimas ties dešinu galu, turi daug skirtingų ilgių sekų.
+# iš visų trijų mėginių. Matosi didelis kokybės kritimas ties dešinu galu, turi daug skirtingų ilgių sekų.
 fastqc -o "${dir}/outputs/raw/" -t ${threads} ${R1} ${R2};
 
 # #trimming on samples
@@ -51,7 +50,8 @@ velveth ${dir}/outputs/"${base}_velvet" 31 -shortPaired -fastq ${OUT1} ${OUT2};
 velvetg ${dir}/outputs/"${base}_velvet" -cov_cutoff auto;
 # 3, 4
 # Dariau atskirai, nes nerodė rezultatų viename faile. Tikriausiai dėl to, nes per maži kontigai po velvet, default >500. 
-# Negaliu palyginti rezultatų, tačiau žiūrint po spade ir lyginant su ref. genomu: SRR15131330 susilygino apie 75 proc. - vidutiniškai, SRR18214264 98 proc. -labai geras rezultatas, ERR204044 98 proc. -labai geras rezultatas.
+# Negaliu palyginti rezultatų, tačiau žiūrint po spade ir lyginant su ref. genomu: SRR15131330 susilygino apie 75 proc. - vidutiniškai,
+# SRR18214264 98 proc. -labai geras rezultatas, ERR204044 98 proc. -labai geras rezultatas.
 python3 ~/quast-5.2.0/quast.py -t ${threads} -o ${dir}/outputs/"${base}_quast_assembly" -r ${dir}/references/GCF_022832545.1_ASM2283254v1_genomic.fna ${dir}/outputs/"${base}_assembly"/contigs.fasta;
 #Labai lievai gavosi, nes maži kontigai. Kodėl taip - nespėjau išsiaiškinti, reikėjo labiau pažaisti su velvet.
 python3 ~/quast-5.2.0/quast.py -m 30 -t ${threads} -o ${dir}/outputs/"${base}_quast_velvet" -r ${dir}/references/GCF_022832545.1_ASM2283254v1_genomic.fna ${dir}/outputs/"${base}_velvet"/contigs.fa;
@@ -89,7 +89,8 @@ bedtools bamtobed -i ${dir}/outputs/"${base}_ragtag_velvet.bam" | sort -k1,1 -k2
 bedtools genomecov -ibam ${dir}/outputs/"${base}_ragtag_velvet.bam" -g ${dir}/references/GCF_022832545.1_ASM2283254v1_genomic.fna.fai > "genome_coverage_${base}_ragtag_velvet.txt"
 bedtools genomecov -ibam ${dir}/outputs/"${base}_ragtag_assembly.bam" -g ${dir}/references/GCF_022832545.1_ASM2283254v1_genomic.fna.fai > "genome_coverage_${base}_ragtag_assembly.txt"
 # GENOME ANALYSIS AND ANNOTATION ---------------------------------------------------------------------
-# 1 Gepard: Tiesiausia istrižainė matoma tarp ERR204044 ir SRR18214264, tai reiškia, kad jie labiausiai panašūs. Tada matome šiek tiek mažesni panašumą su ERR204044 ir SRR15131330.
+# 1 Gepard: Tiesiausia istrižainė matoma tarp ERR204044 ir SRR18214264, tai reiškia, kad jie labiausiai panašūs.
+# Tada matome šiek tiek mažesni panašumą su ERR204044 ir SRR15131330.
 # Ir mažiausias panašumas yra tarp SRR15131330 ir SRR18214264. Tai reiškia, kad SRR15131330 ir SRR18214264 labiausiai skiriasi.
 # 2 Busco: Rezultatas neblogas, sekos buvo atpažintos kaip lactobacillales bakterijų eilės.
 # SRR264 99 proc. "subrendusių" sekų, 0.5 proc. fragmentuotų, 0.5 proc. trūkstamų.
@@ -97,17 +98,20 @@ bedtools genomecov -ibam ${dir}/outputs/"${base}_ragtag_assembly.bam" -g ${dir}/
 # ERR 99 proc. "subrendusių" sekų, 0.5 proc. fragmentuotų, 0.5 proc. trūkstamų.
 # 6 Palyginimas iš blast, rast, geneMarkS2:
 # geneMarkS2: 330: 2559 genai buvo atrasti. 264: 2327 genai buvo atrasti. ERR: 2301 genas buvo atrastas.
-# RAST: ERR(RAST 856): 2428 genai buvo atrasti; 264(RAST 855): 2397 genai buvo atrasti; 330(RAST 854): 2645 genai buvo atrasti.
-
+# RAST: ERR(RAST ID 856): 2428 genai buvo atrasti; 264(RAST ID 855): 2397 genai buvo atrasti; 330(RAST ID 854): 2645 genai buvo atrasti.
+# BLAST: ERR: 2397 genai, 330: 4600 genai, 264: 2797 genai.(iš contig_prot.fasta.blastn failų)
+# Galime pastebėti, jog BLAST su 1e-75 e-value treshold parodo daugiausiai genų, o geneMarkS2 ir RAST parodo mažiau. Tačiu rezultatai skiriasi neperdaugiausiai, išskyrus 330 po blast.
 makeblastdb -in ${dir}/outputs/"${base}_assembly"/contigs.fasta -dbtype nucl
 
 blastn -query ${dir}/inputs/sequenceGenes.txt -db ${dir}/outputs/"${base}_assembly"/contigs.fasta > ${dir}/outputs/"${base}_assembly"/blastgene_info.txt;
 tblastn -query ${dir}/inputs/sequenceProtein.txt -db ${dir}/outputs/"${base}_assembly"/contigs.fasta > ${dir}/outputs/"${base}_assembly"/blastprot_info.txt;
 
-blastn -query ${dir}/inputs/sequenceGenes.txt -db ${dir}/outputs/"${base}_assembly"/contigs.fasta -out ${dir}/outputs/"${base}_assembly"/contig_gene.fasta.blastn -outfmt 6;
-tblastn -query ${dir}/inputs/sequenceProtein.txt -db ${dir}/outputs/"${base}_assembly"/contigs.fasta -out ${dir}/outputs/"${base}_assembly"/contig_prot.fasta.blastn -outfmt 6;
-# 10 filogenetiniai medžiai:
-# 11 rezultatai:
+blastn -query ${dir}/inputs/sequenceGenes.txt -db ${dir}/outputs/"${base}_assembly"/contigs.fasta -out ${dir}/outputs/"${base}_assembly"/contig_gene.fasta.blastn -outfmt 6 -evalue "1e-75";
+tblastn -query ${dir}/inputs/sequenceProtein.txt -db ${dir}/outputs/"${base}_assembly"/contigs.fasta -out ${dir}/outputs/"${base}_assembly"/contig_prot.fasta.blastn -outfmt 6 -evalue "1e-75";
+# 10 filogenetiniai medžiai: Gavosi vienodi medžiai, labai nudžiugino tokie rezultatai, po sunkaus ir ilgo darbo. Imiau Staphilococus Aureus kaip outgroup, medis parodė,
+# jog šio organizmo sekos yra labiausiai nutolusios nuo kitų trijų mėginių, taip ir turėjo būti. Nuostabu.
+# 11 rezultatai: Galime pamatyti iš gepard ir filogenetinių medžių, jog ERR204044 ir SRR18214264 yra labiausiai panašūs. Rezultatai mane kiek nustebino, nes atrodė,
+# kad iš 264 mėginio nieko gero nebus. Tačiau matome, jog su daugiausiai duomenų turinčiu mėginiu rezultatas buvo geras, bet gal dėl to ir geras, nes mažai duomenų 264 mėginyje.
 done;
 dir=/home/bioinformatikai/HW2
 
